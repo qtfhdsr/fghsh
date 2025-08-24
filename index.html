@@ -7406,14 +7406,14 @@ document.head.appendChild(swipeStyle);
 <script>
 (function() {
   const SWIPE_THRESHOLD = 24;
-  const EDGE_OFFSET = 20; // для Android, минимальное расстояние от края
+  const EDGE_OFFSET = 20; // Android: минимальное смещение для обхода системного жеста
   const ANIM_MS = 250;
 
   let startX = 0, startY = 0;
   let isSwiping = false;
   let activePage = null, nextPage = null;
   let swipeDirection = null;
-  let allowSwipe = true;
+  let offsetApplied = false;
 
   const swipeStyles = `
     body, .page-container { touch-action: none; }
@@ -7503,15 +7503,13 @@ document.head.appendChild(swipeStyle);
         if (window.Telegram?.WebApp?.HapticFeedback) {
           window.Telegram.WebApp.HapticFeedback.impactOccurred("light");
         }
-        if (window.Telegram?.WebApp) {
-          window.Telegram.WebApp.expand();
-        }
+        if (window.Telegram?.WebApp) window.Telegram.WebApp.expand();
       } catch(e){}
 
       setTimeout(clearAfterSuccess, ANIM_MS + 20);
     } else {
       activePage.style.transform = "translateX(0)";
-      nextPage.style.transform = (swipeDirection === "right") ? "translateX(-100%)" : "translateX(100%)";
+      nextPage.style.transform = (swipeDirection === "right") ? "translateX(-100%)" : `translateX(${window.innerWidth}px)`;
       setTimeout(clearAfterCancel, ANIM_MS + 20);
     }
   }
@@ -7521,31 +7519,34 @@ document.head.appendChild(swipeStyle);
     startX = t.clientX;
     startY = t.clientY;
     swipeDirection = null;
-    allowSwipe = true;
+    offsetApplied = false;
 
     if (e.target.closest(".no-swipe, input, textarea, select, button, a")) {
       isSwiping = false;
       return;
     }
 
-    // Android: если свайп вправо начинается у самого левого края — запрещаем (системный жест)
-    const ua = navigator.userAgent || "";
-    if (/android/i.test(ua) && startX < EDGE_OFFSET) allowSwipe = false;
-
     isSwiping = true;
   }, { passive: false });
 
   document.addEventListener("touchmove", (e) => {
-    if (!isSwiping || !allowSwipe) return;
+    if (!isSwiping) return;
 
-    const x = e.touches[0].clientX;
+    let x = e.touches[0].clientX;
     const y = e.touches[0].clientY;
-    const dx = x - startX;
+    let dx = x - startX;
     const dy = y - startY;
 
     if (Math.abs(dy) > Math.abs(dx)) { isSwiping = false; return; }
 
     if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+
+    if (navigator.userAgent.toLowerCase().includes("android") && dx > 0 && startX < EDGE_OFFSET && !offsetApplied) {
+      // сдвигаем стартовую точку чуть внутрь экрана, чтобы обойти системный жест
+      startX = EDGE_OFFSET;
+      dx = x - startX;
+      offsetApplied = true;
+    }
 
     if (e.cancelable) e.preventDefault();
 
@@ -7559,7 +7560,7 @@ document.head.appendChild(swipeStyle);
   }, { passive: false });
 
   document.addEventListener("touchend", (e) => {
-    if (!isSwiping || !allowSwipe) return;
+    if (!isSwiping) return;
     isSwiping = false;
 
     if (!nextPage) return;
@@ -7568,6 +7569,7 @@ document.head.appendChild(swipeStyle);
     const success = Math.abs(dx) > window.innerWidth / 4;
     finishSwipe(success);
   }, { passive: false });
+
 })();
 </script>
   
