@@ -7406,9 +7406,9 @@ document.head.appendChild(swipeStyle);
 <script>
 (function() {
   const SWIPE_THRESHOLD = 24;
-  const EDGE_OFFSET = 20;   // Android: зона, где системный жест "назад" блокирует свайп
+  const EDGE_OFFSET = 20;    // Android: старт свайпа не с самого края
   const ANIM_MS = 250;
-  const MICRO_OFFSET = 10;  // визуальная подсказка для свайпа
+  const MICRO_OFFSET = 10;   // микро-анимация bounce
 
   let startX = 0, startY = 0;
   let isSwiping = false;
@@ -7501,9 +7501,7 @@ document.head.appendChild(swipeStyle);
 
       try {
         if (navigator.vibrate) navigator.vibrate(30);
-        if (window.Telegram?.WebApp?.HapticFeedback) {
-          window.Telegram.WebApp.HapticFeedback.impactOccurred("light");
-        }
+        if (window.Telegram?.WebApp?.HapticFeedback) window.Telegram.WebApp.HapticFeedback.impactOccurred("light");
         if (window.Telegram?.WebApp) window.Telegram.WebApp.expand();
       } catch(e){}
 
@@ -7528,9 +7526,9 @@ document.head.appendChild(swipeStyle);
       return;
     }
 
-    // Telegram WebApp Android: микро-анимация для свайпа вправо
+    // Telegram Android: микро-анимация для подсказки свайпа вправо
     if (/android/i.test(navigator.userAgent) && startX < EDGE_OFFSET) {
-      startX = EDGE_OFFSET; // сдвиг стартовой точки внутрь
+      startX = EDGE_OFFSET; // сдвигаем стартовую точку
       const page = getCurrentPage();
       page.classList.add("no-transition");
       page.style.transform = `translateX(${MICRO_OFFSET}px)`;
