@@ -7405,15 +7405,14 @@ document.head.appendChild(swipeStyle);
 
 <script>
 (function() {
-  const SWIPE_THRESHOLD = 24;   // минимальный порог для горизонтального свайпа
-  const EDGE_OFFSET = 20;        // Android: минимальное смещение для обхода системного жеста
+  const SWIPE_THRESHOLD = 24;   // минимальное смещение для распознавания свайпа
+  const EDGE_OFFSET = 20;        // минимальное смещение от левого края для обхода системного жеста
   const ANIM_MS = 250;
 
   let startX = 0, startY = 0;
   let isSwiping = false;
   let activePage = null, nextPage = null;
   let swipeDirection = null;
-  let offsetApplied = false;
   let horizontalDetected = false;
 
   const swipeStyles = `
@@ -7520,7 +7519,6 @@ document.head.appendChild(swipeStyle);
     startX = t.clientX;
     startY = t.clientY;
     swipeDirection = null;
-    offsetApplied = false;
     horizontalDetected = false;
     isSwiping = true;
 
@@ -7528,30 +7526,27 @@ document.head.appendChild(swipeStyle);
       isSwiping = false;
       return;
     }
+
+    // Telegram WebApp Android: если свайп вправо начинается слишком близко к левому краю,
+    // смещаем стартовую точку внутрь, чтобы обойти системный жест «назад»
+    if (/android/i.test(navigator.userAgent) && startX < EDGE_OFFSET) startX = EDGE_OFFSET;
   }, { passive: false });
 
   document.addEventListener("touchmove", (e) => {
     if (!isSwiping) return;
 
-    let x = e.touches[0].clientX;
+    const x = e.touches[0].clientX;
     const y = e.touches[0].clientY;
-    let dx = x - startX;
+    const dx = x - startX;
     const dy = y - startY;
 
-    // Определяем горизонтальный свайп один раз
+    // определяем горизонтальный свайп
     if (!horizontalDetected && Math.abs(dx) > Math.abs(dy)) horizontalDetected = true;
 
-    // Если горизонтальный свайп обнаружен, блокируем вертикальный скролл
-    if (horizontalDetected) e.preventDefault();
+    // если горизонтальный свайп определён, блокируем вертикальный скролл
+    if (horizontalDetected && e.cancelable) e.preventDefault();
 
     if (Math.abs(dx) < SWIPE_THRESHOLD) return;
-
-    // Android: обходим системный жест "назад"
-    if (navigator.userAgent.toLowerCase().includes("android") && dx > 0 && startX < EDGE_OFFSET && !offsetApplied) {
-      startX = EDGE_OFFSET;
-      dx = x - startX;
-      offsetApplied = true;
-    }
 
     swipeDirection = dx > 0 ? "right" : "left";
 
