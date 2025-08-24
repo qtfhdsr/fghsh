@@ -7405,17 +7405,16 @@ document.head.appendChild(swipeStyle);
 
 <script>
 (function() {
-  const SWIPE_THRESHOLD = 24;   
-  const EDGE_OFFSET = 20;        
+  const SWIPE_THRESHOLD = 24;
+  const EDGE_OFFSET = 20;   // Android: зона, где системный жест "назад" блокирует свайп
   const ANIM_MS = 250;
-  const MICRO_OFFSET = 10;       // визуальный отступ для подсказки
+  const MICRO_OFFSET = 10;  // визуальная подсказка для свайпа
 
   let startX = 0, startY = 0;
   let isSwiping = false;
   let activePage = null, nextPage = null;
   let swipeDirection = null;
   let horizontalDetected = false;
-  let offsetApplied = false;
 
   const swipeStyles = `
     body, .page-container { touch-action: none; }
@@ -7522,7 +7521,6 @@ document.head.appendChild(swipeStyle);
     startY = t.clientY;
     swipeDirection = null;
     horizontalDetected = false;
-    offsetApplied = false;
     isSwiping = true;
 
     if (e.target.closest(".no-swipe, input, textarea, select, button, a")) {
@@ -7530,12 +7528,9 @@ document.head.appendChild(swipeStyle);
       return;
     }
 
-    // Telegram WebApp Android: микро-анимация, если начало свайпа слишком близко к левому краю
+    // Telegram WebApp Android: микро-анимация для свайпа вправо
     if (/android/i.test(navigator.userAgent) && startX < EDGE_OFFSET) {
-      startX += MICRO_OFFSET;
-      offsetApplied = true;
-
-      // плавный сдвиг страницы на MICRO_OFFSET пикселей для визуальной подсказки
+      startX = EDGE_OFFSET; // сдвиг стартовой точки внутрь
       const page = getCurrentPage();
       page.classList.add("no-transition");
       page.style.transform = `translateX(${MICRO_OFFSET}px)`;
@@ -7553,7 +7548,6 @@ document.head.appendChild(swipeStyle);
     let dx = x - startX;
     const dy = y - startY;
 
-    // блокируем вертикальный скролл при горизонтальном движении
     if (!horizontalDetected && Math.abs(dx) > Math.abs(dy)) horizontalDetected = true;
     if (horizontalDetected && e.cancelable) e.preventDefault();
 
