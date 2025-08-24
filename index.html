@@ -7405,15 +7405,17 @@ document.head.appendChild(swipeStyle);
 
 <script>
 (function() {
-  const SWIPE_THRESHOLD = 24;   // минимальное смещение для распознавания свайпа
-  const EDGE_OFFSET = 20;        // минимальное смещение от левого края для обхода системного жеста
+  const SWIPE_THRESHOLD = 24;   
+  const EDGE_OFFSET = 20;        
   const ANIM_MS = 250;
+  const MICRO_OFFSET = 10;       // визуальный отступ для подсказки
 
   let startX = 0, startY = 0;
   let isSwiping = false;
   let activePage = null, nextPage = null;
   let swipeDirection = null;
   let horizontalDetected = false;
+  let offsetApplied = false;
 
   const swipeStyles = `
     body, .page-container { touch-action: none; }
@@ -7520,6 +7522,7 @@ document.head.appendChild(swipeStyle);
     startY = t.clientY;
     swipeDirection = null;
     horizontalDetected = false;
+    offsetApplied = false;
     isSwiping = true;
 
     if (e.target.closest(".no-swipe, input, textarea, select, button, a")) {
@@ -7527,9 +7530,19 @@ document.head.appendChild(swipeStyle);
       return;
     }
 
-    // Telegram WebApp Android: если свайп вправо начинается слишком близко к левому краю,
-    // смещаем стартовую точку внутрь, чтобы обойти системный жест «назад»
-    if (/android/i.test(navigator.userAgent) && startX < EDGE_OFFSET) startX = EDGE_OFFSET;
+    // Telegram WebApp Android: микро-анимация, если начало свайпа слишком близко к левому краю
+    if (/android/i.test(navigator.userAgent) && startX < EDGE_OFFSET) {
+      startX += MICRO_OFFSET;
+      offsetApplied = true;
+
+      // плавный сдвиг страницы на MICRO_OFFSET пикселей для визуальной подсказки
+      const page = getCurrentPage();
+      page.classList.add("no-transition");
+      page.style.transform = `translateX(${MICRO_OFFSET}px)`;
+      requestAnimationFrame(() => {
+        page.classList.remove("no-transition");
+      });
+    }
   }, { passive: false });
 
   document.addEventListener("touchmove", (e) => {
@@ -7537,13 +7550,11 @@ document.head.appendChild(swipeStyle);
 
     const x = e.touches[0].clientX;
     const y = e.touches[0].clientY;
-    const dx = x - startX;
+    let dx = x - startX;
     const dy = y - startY;
 
-    // определяем горизонтальный свайп
+    // блокируем вертикальный скролл при горизонтальном движении
     if (!horizontalDetected && Math.abs(dx) > Math.abs(dy)) horizontalDetected = true;
-
-    // если горизонтальный свайп определён, блокируем вертикальный скролл
     if (horizontalDetected && e.cancelable) e.preventDefault();
 
     if (Math.abs(dx) < SWIPE_THRESHOLD) return;
