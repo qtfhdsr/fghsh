@@ -7405,8 +7405,8 @@ document.head.appendChild(swipeStyle);
 
 <script>
 (function() {
-  const SWIPE_THRESHOLD = 24;
-  const EDGE_OFFSET = 20; // Android: минимальное смещение для обхода системного жеста
+  const SWIPE_THRESHOLD = 24;   // минимальный порог для горизонтального свайпа
+  const EDGE_OFFSET = 20;        // Android: минимальное смещение для обхода системного жеста
   const ANIM_MS = 250;
 
   let startX = 0, startY = 0;
@@ -7414,6 +7414,7 @@ document.head.appendChild(swipeStyle);
   let activePage = null, nextPage = null;
   let swipeDirection = null;
   let offsetApplied = false;
+  let horizontalDetected = false;
 
   const swipeStyles = `
     body, .page-container { touch-action: none; }
@@ -7520,13 +7521,13 @@ document.head.appendChild(swipeStyle);
     startY = t.clientY;
     swipeDirection = null;
     offsetApplied = false;
+    horizontalDetected = false;
+    isSwiping = true;
 
     if (e.target.closest(".no-swipe, input, textarea, select, button, a")) {
       isSwiping = false;
       return;
     }
-
-    isSwiping = true;
   }, { passive: false });
 
   document.addEventListener("touchmove", (e) => {
@@ -7537,18 +7538,20 @@ document.head.appendChild(swipeStyle);
     let dx = x - startX;
     const dy = y - startY;
 
-    if (Math.abs(dy) > Math.abs(dx)) { isSwiping = false; return; }
+    // Определяем горизонтальный свайп один раз
+    if (!horizontalDetected && Math.abs(dx) > Math.abs(dy)) horizontalDetected = true;
+
+    // Если горизонтальный свайп обнаружен, блокируем вертикальный скролл
+    if (horizontalDetected) e.preventDefault();
 
     if (Math.abs(dx) < SWIPE_THRESHOLD) return;
 
+    // Android: обходим системный жест "назад"
     if (navigator.userAgent.toLowerCase().includes("android") && dx > 0 && startX < EDGE_OFFSET && !offsetApplied) {
-      // сдвигаем стартовую точку чуть внутрь экрана, чтобы обойти системный жест
       startX = EDGE_OFFSET;
       dx = x - startX;
       offsetApplied = true;
     }
-
-    if (e.cancelable) e.preventDefault();
 
     swipeDirection = dx > 0 ? "right" : "left";
 
